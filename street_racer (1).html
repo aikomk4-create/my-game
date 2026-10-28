@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Street Racer</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101010;color:white;font-family:Arial,sans-serif;text-align:center;overflow:hidden}h1{margin:12px 0 5px;color:#ff3131}#info{margin:8px;font-size:18px}canvas{display:block;margin:auto;background:#333;border:3px solid #777;max-width:100vw;max-height:72vh}#controls{margin:10px}button{padding:12px 22px;margin:4px;border:0;border-radius:8px;background:#ff3030;color:white;font-size:17px;font-weight:bold;cursor:pointer;touch-action:none}#message{position:fixed;inset:0;background:#000c;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:5}#message h2{font-size:36px;color:#ff3030}#message p{font-size:18px}.hidden{display:none!important}
+</style>
+</head>
+<body>
+<h1>STREET RACER</h1>
+<div id="info">Счёт: <span id="score">0</span> &nbsp; | &nbsp; Скорость: <span id="speed">1</span></div>
+<canvas id="game" width="400" height="600"></canvas>
+<div id="controls"><button id="left">◀ НАЛЕВО</button><button id="right">НАПРАВО ▶</button></div>
+<div id="message"><h2>STREET RACER</h2><p>Избегай машин и набирай очки!</p><p>Управление: ← → или A D</p><button id="start">НАЧАТЬ ИГРУ</button></div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');const scoreText=document.getElementById('score'),speedText=document.getElementById('speed'),message=document.getElementById('message');const W=canvas.width,H=canvas.height,road={left:45,right:355};let player,enemies,score,speed,roadOffset,running=false,lastTime=0,spawnTimer=0;const keys={left:false,right:false};
+function resetGame(){player={x:180,y:480,w:40,h:72};enemies=[];score=0;speed=4;roadOffset=0;spawnTimer=0;scoreText.textContent='0';speedText.textContent='1';}
+function drawCar(x,y,w,h,color,isPlayer=false){ctx.fillStyle='#111';ctx.fillRect(x-3,y+12,5,17);ctx.fillRect(x+w-2,y+12,5,17);ctx.fillRect(x-3,y+h-29,5,17);ctx.fillRect(x+w-2,y+h-29,5,17);ctx.fillStyle=color;ctx.fillRect(x+3,y,w-6,h);ctx.fillStyle='#222';ctx.fillRect(x+7,y+12,w-14,19);ctx.fillRect(x+7,y+43,w-14,13);ctx.fillStyle='#8deaff';ctx.fillRect(x+9,y+14,w-18,12);if(isPlayer){ctx.fillStyle='#fff';ctx.fillRect(x+5,y+3,8,5);ctx.fillRect(x+w-13,y+3,8,5);ctx.fillStyle='#ff2929';ctx.fillRect(x+5,y+h-7,8,5);ctx.fillRect(x+w-13,y+h-7,8,5)}else{ctx.fillStyle='#ffe58a';ctx.fillRect(x+5,y+h-7,8,5);ctx.fillRect(x+w-13,y+h-7,8,5)}}
+function drawRoad(dt){ctx.fillStyle='#22652b';ctx.fillRect(0,0,W,H);ctx.fillStyle='#303238';ctx.fillRect(road.left,0,road.right-road.left,H);ctx.fillStyle='#eee';ctx.fillRect(road.left,0,5,H);ctx.fillRect(road.right-5,0,5,H);roadOffset=(roadOffset+speed*dt)%80;ctx.fillStyle='#f8d84a';for(let y=-80+roadOffset;y<H;y+=80){ctx.fillRect(145,y,5,42);ctx.fillRect(250,y,5,42)}ctx.fillStyle='#fff';for(let y=-40+roadOffset;y<H;y+=80){ctx.fillRect(25,y,8,35);ctx.fillRect(367,y,8,35)}}
+function spawnEnemy(){const lanes=[80,185,290],colors=['#eeeeee','#2878ff','#ffbb22','#a43cff','#22bfa2'];enemies.push({x:lanes[Math.floor(Math.random()*lanes.length)],y:-85,w:40,h:72,color:colors[Math.floor(Math.random()*colors.length)]})}
+function collision(a,b){return a.x+5<b.x+b.w-5&&a.x+a.w-5>b.x+5&&a.y+8<b.y+b.h-8&&a.y+a.h-8>b.y+8}
+function endGame(){running=false;message.classList.remove('hidden');message.querySelector('h2').textContent='ИГРА ОКОНЧЕНА';message.querySelector('p').textContent='Твой результат: '+Math.floor(score);document.getElementById('start').textContent='ИГРАТЬ СНОВА'}
+function update(dt){if(keys.left)player.x-=5*dt;if(keys.right)player.x+=5*dt;player.x=Math.max(road.left+8,Math.min(road.right-player.w-8,player.x));speed=4+Math.min(score/300,8);spawnTimer+=dt;if(spawnTimer>Math.max(30,85-speed*4)){spawnEnemy();spawnTimer=0}for(let i=enemies.length-1;i>=0;i--){const e=enemies[i];e.y+=speed*dt;if(collision(player,e)){endGame();return}if(e.y>H){enemies.splice(i,1);score+=10}}score+=dt*.08;scoreText.textContent=Math.floor(score);speedText.textContent=(speed/4).toFixed(1)+'x'}
+function loop(time){if(!running)return;const dt=Math.min((time-lastTime)/16.67||1,2);lastTime=time;drawRoad(dt);update(dt);enemies.forEach(e=>drawCar(e.x,e.y,e.w,e.h,e.color));drawCar(player.x,player.y,player.w,player.h,'#ff2020',true);if(running)requestAnimationFrame(loop)}
+function startGame(){resetGame();message.classList.add('hidden');running=true;lastTime=performance.now();requestAnimationFrame(loop)}
+document.getElementById('start').addEventListener('click',startGame);document.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();if(e.key==='ArrowLeft'||e.key.toLowerCase()==='a')keys.left=true;if(e.key==='ArrowRight'||e.key.toLowerCase()==='d')keys.right=true});document.addEventListener('keyup',e=>{if(e.key==='ArrowLeft'||e.key.toLowerCase()==='a')keys.left=false;if(e.key==='ArrowRight'||e.key.toLowerCase()==='d')keys.right=false});
+function bindButton(id,direction){const btn=document.getElementById(id);btn.addEventListener('pointerdown',e=>{e.preventDefault();keys[direction]=true;btn.setPointerCapture(e.pointerId)});const release=()=>keys[direction]=false;btn.addEventListener('pointerup',release);btn.addEventListener('pointercancel',release);btn.addEventListener('lostpointercapture',release)}bindButton('left','left');bindButton('right','right');resetGame();drawRoad(0);drawCar(player.x,player.y,player.w,player.h,'#ff2020',true);
+</script>
+</body>
+</html>
